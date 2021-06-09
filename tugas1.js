@@ -1,9 +1,10 @@
 const sql = require('mysql')
 const express = require('express');
+const app = express()
 const bodyParser = require('body-parser');
 const { rows } = require('mssql');
 const cors = require('cors')
-const app = express()
+const auth = require('./middleware/middle.js')
 app.use(express.json())
 app.use(express.urlencoded())
 app.use(cors())
@@ -17,7 +18,7 @@ con.connect(function (err){
     if(err) console.log(err);
     else console.log("Connected!")
 })
-app.get('/', (req, res) => {
+app.get('/',auth ,(req, res) => {
     res.send(`<html>
     <div><form method="post" action="/todo"><input type="text" name="kode"/><button type="submit">Add</button></div></form></html>`)
 })
@@ -26,11 +27,11 @@ app.post('/todo', (req, res) => {
     var sqll = "INSERT INTO tblKode (desk) VALUES ('"+data+"')"
     con.query(sqll, data, function(err, data1){
         if(err) throw err;
-        console.log("User Data has inserted!")
+        console.log("Data has inserted!")
     })
     res.end()
 })
-app.get('/todo', (req, res) => {
+app.get('/todo',auth , (req, res) => {
     con.query("SELECT * from tblKode", (err, rows, field) => {
         if(!err){
             res.send(rows)
@@ -40,10 +41,43 @@ app.get('/todo', (req, res) => {
         }
     })
 })
-app.delete('/todo/:Id', (req, res) => {
+app.delete('/todo/:Id',auth , (req, res) => {
     con.query("DELETE from tblKode WHERE Id='"+req.params.Id+"'")
     res.end()
 })
+
+app.get('/user',auth ,(req, res) => {
+    con.query("SELECT id, username FROM tbluser", (err, rows, field) => {
+        if(!err){
+            res.send(rows)
+        }
+        else{
+            console.log(err)
+        }
+    })
+})
+app.post('/user', (req, res, next) => {
+    con.query('SELECT COUNT(*) as jumlahuser FROM tbluser', function(err, data1) {
+        var convert = Object.values(data1)
+        if(convert[0].jumlahuser > 0){
+            auth(req,res,next)
+        } else {
+            next()
+        }
+    })
+}, (req, res) => {
+    const user = req.body.username
+    const pass = req.body.password
+    con.query('INSERT INTO tbluser (username, password) VALUES (?,?)',[user,pass], function(err, data1){
+        if(err) {
+            res.end(500)
+            return
+        }
+    })
+    res.json({id:this.id, username:user})
+})
+app.delete('/user/:id',auth , (req, res) => {
+    con.query("DELETE from tbluser WHERE id='"+req.params.id+"'")
+    res.end()
+})
 app.listen(3000);
-
-
