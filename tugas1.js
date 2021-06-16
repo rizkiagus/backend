@@ -68,16 +68,31 @@ app.post('/user', (req, res, next) => {
 }, (req, res) => {
     const user = req.body.username
     const pass = req.body.password
-    con.query('INSERT INTO tbluser (username, password) VALUES (?,?)',[user,pass], function(err, data1){
-        if(err) {
-            res.end(500)
-            return
+    con.query('SELECT username FROM tbluser WHERE username=?',[user], function(err, rows, field) {
+        if(rows.length > 1){
+            res.send(401)
+        } else {
+            con.query('INSERT INTO tbluser (username, password) VALUES (?,?)',[user,pass], function(err, data1){
+                if(err) {
+                    res.end(500)
+                    return
+                }
+            })
+            con.query('SELECT id, username FROM tbluser ORDER BY id DESC LIMIT 1', (err, rows, field) => {
+                res.send(rows)
+            })
         }
     })
-    res.json({id:this.id, username:user})
 })
-app.delete('/user/:id',auth , (req, res) => {
-    con.query("DELETE from tbluser WHERE id='"+req.params.id+"'")
-    res.end()
+app.delete('/user/:id', (req, res) => {
+    con.query('SELECT COUNT(*) as jumlahuser FROM tbluser', function(err, data1) {
+        var convert = Object.values(data1)
+        if(convert[0].jumlahuser > 1){
+            con.query("DELETE from tbluser WHERE id='"+req.params.id+"'")
+            res.end("Deleted")
+        }else {
+            res.send(401)
+        }
+    })
 })
 app.listen(3000);
